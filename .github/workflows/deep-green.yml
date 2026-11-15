@@ -1,0 +1,57 @@
+name: Deep Green Top-up
+
+# Tops up today's commit count in this repo to 20, so the contribution
+# graph square for today (America/New_York) reaches the darkest tier.
+# Commits are authored as the repo owner and stamped at noon ET of the
+# target day, so they attribute to that ET date.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:30 UTC = 22:30 EST / 23:30 EDT, same ET calendar day either way
+    - cron: '30 3 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deep-green
+  cancel-in-progress: false
+
+jobs:
+  topup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Top up today's commits to 20
+        shell: bash
+        env:
+          TZ: America/New_York
+        run: |
+          TODAY=$(date +%F)
+          OFF=$(date +%z)
+          START=$(date -d "$TODAY 00:00:00" +%s)
+          END=$(date -d "$TODAY 23:59:59" +%s)
+          git config user.name "jlovezcx"
+          git config user.email "jlovezcx@gmail.com"
+          EXISTING=$(git log --since="@$START" --until="@$END" --format='%H' | wc -l)
+          echo "ET date=$TODAY existing=$EXISTING"
+          NEED=$((20 - EXISTING))
+          if [ "$NEED" -le 0 ]; then
+            echo "Already at or above 20 commits today; nothing to do."
+            exit 0
+          fi
+          if [ ! -f WALL.md ]; then
+            echo "# Green Wall" > WALL.md
+          fi
+          for i in $(seq 1 $NEED); do
+            printf -v SEC "%02d" "$i"
+            echo "- $TODAY top-up $i of $NEED" >> WALL.md
+            git add WALL.md
+            GIT_AUTHOR_DATE="${TODAY}T12:00:${SEC}${OFF}" GIT_COMMITTER_DATE="${TODAY}T12:00:${SEC}${OFF}" git commit -m "chore: green wall $TODAY ($i/$NEED)"
+          done
+          git push
+          echo "Topped up $NEED commits for $TODAY."
