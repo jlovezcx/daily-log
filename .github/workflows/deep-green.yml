@@ -1,9 +1,13 @@
 name: Deep Green Top-up
 
-# Tops up today's commit count in this repo to 20, so the contribution
-# graph square for today (America/New_York) reaches the darkest tier.
-# Commits are authored as the repo owner and stamped at noon ET of the
-# target day, so they attribute to that ET date.
+# Fallback + top-up, run nightly:
+# 1) If today's LOG.md check-in line is missing, append and commit it
+#    (message "daily log: <date>"), so a broken planner chain can never
+#    lose a day's check-in.
+# 2) Top up today's commit count in this repo to 20, so the contribution
+#    graph square for today (America/New_York) reaches the darkest tier.
+# All commits are authored as the repo owner and stamped at noon ET of
+# the target day, so they attribute to that ET date.
 
 on:
   workflow_dispatch:
@@ -26,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Top up today's commits to 20
+      - name: Ensure today's LOG line, then top up to 20
         shell: bash
         env:
           TZ: America/New_York
@@ -37,11 +41,24 @@ jobs:
           END=$(date -d "$TODAY 23:59:59" +%s)
           git config user.name "jlovezcx"
           git config user.email "jlovezcx@gmail.com"
+          LINE="- $TODAY — daily check-in"
+          if [ ! -f LOG.md ]; then
+            printf '# Daily Log\n\n' > LOG.md
+          fi
+          if grep -qxF "$LINE" LOG.md; then
+            echo "LOG line for $TODAY already present."
+          else
+            echo "$LINE" >> LOG.md
+            git add LOG.md
+            GIT_AUTHOR_DATE="${TODAY}T12:00:00${OFF}" GIT_COMMITTER_DATE="${TODAY}T12:00:00${OFF}" git commit -m "daily log: $TODAY"
+            echo "LOG fallback: appended today's check-in line."
+          fi
           EXISTING=$(git log --since="@$START" --until="@$END" --format='%H' | wc -l)
           echo "ET date=$TODAY existing=$EXISTING"
           NEED=$((20 - EXISTING))
           if [ "$NEED" -le 0 ]; then
-            echo "Already at or above 20 commits today; nothing to do."
+            git push
+            echo "Already at or above 20 commits today; nothing to top up."
             exit 0
           fi
           if [ ! -f WALL.md ]; then
