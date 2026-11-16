@@ -45,7 +45,7 @@ jobs:
           if [ ! -f LOG.md ]; then
             printf '# Daily Log\n\n' > LOG.md
           fi
-          if grep -qxF "$LINE" LOG.md; then
+          if grep -qxF -- "$LINE" LOG.md; then
             echo "LOG line for $TODAY already present."
           else
             echo "$LINE" >> LOG.md
