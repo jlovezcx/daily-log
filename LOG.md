@@ -9,3 +9,4 @@
 - 2026-11-17 — daily check-in
 - 2026-11-18 — daily check-in
 - 2026-11-19 — daily check-in
+- 2026-11-20 — daily check-in
